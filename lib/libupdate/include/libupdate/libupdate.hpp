@@ -21,7 +21,7 @@ namespace libupdate {
         progress   _progress = {};
         std::atomic<bool> _paused = false;
         std::map<std::string, uint32_t> _indexes = {};
-        void update_indexes();
+        void update_manifest();
     public:
         [[nodiscard]]
         progress get_progress() const noexcept;
