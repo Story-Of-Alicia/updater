@@ -6,6 +6,7 @@
 #define LIBPAK_DEFINITIONS_HPP
 
 #include <cstdint>
+#include <cstring>
 #include <memory>
 #include <vector>
 #include <string>
@@ -122,7 +123,16 @@ struct asset
   /**
    * @return String view of the asset path.
    */
-  std::u16string path() { return header.path; }
+  [[nodiscard]] std::string path() const {
+    char path[512] {};
+    for (unsigned index = 0, ptr = 0; index < std::size(header.path); ++index) {
+      if (header.path[index] == '\0')
+        break;
+      int const size = wctomb(&path[ptr], header.path[index]);
+      ptr += size;
+    }
+    return {path};
+  }
 
   /**
    * Mark the asset as patched.

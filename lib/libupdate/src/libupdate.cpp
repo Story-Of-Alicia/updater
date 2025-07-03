@@ -11,6 +11,8 @@
 #include <boost/asio/ssl/error.hpp>
 #include <boost/asio/ssl/stream.hpp>
 
+#include "libpak/libpak.hpp"
+
 namespace beast = boost::beast; // from <boost/beast.hpp>
 namespace http = beast::http; // from <boost/beast/http.hpp>
 namespace net = boost::asio; // from <boost/asio.hpp>
@@ -45,7 +47,7 @@ void libupdate::update::update_manifest() {
     http::response<http::string_body> resp;
     http::read(stream, buffer, resp);
 
-    _indexes.clear();
+    _manifest.clear();
 
     beast::error_code ec;
     stream.shutdown(ec);
@@ -67,7 +69,9 @@ void libupdate::update::update_manifest() {
         memset(path, 0, sizeof(path));
         memset(crc, 0, sizeof(crc));
 
-        for (unsigned index = 0; index < 256; ++index, ++offset) {
+        // parse path up until the first colon ':'
+        // incrementing the path index, but also the offset from the start of the file
+        for (unsigned index = 0; index < sizeof(path); ++index, ++offset) {
             if (offset >= resp.body().size()) {
                 throw std::runtime_error("unexpected eof when parsing a path in the manifest");
             }
@@ -88,7 +92,8 @@ void libupdate::update::update_manifest() {
             }
             crc[index] = resp.body().at(offset);
         }
-
+        // since uint32_t is larger than int we must first parse it as long long
+        // and then cast it to uint32_t
         long long crc_l;
         try {
             crc_l = std::stoll(std::string(crc), nullptr, 16); //TODO: sto(uint32_t)?
@@ -101,7 +106,8 @@ void libupdate::update::update_manifest() {
            throw std::runtime_error(std::format("invalid crc for '{}' - out of range", std::string(path)));
         }
         auto crc_i = static_cast<uint32_t>(crc_l);
-        _indexes.emplace(std::string(path), crc_i);
+        _manifest.emplace(std::string(path), crc_i);
+        ++offset; // ignore then newline at the end of the line
     }
 }
 
@@ -111,8 +117,26 @@ libupdate::progress libupdate::update::get_progress() const noexcept {
 }
 
 void libupdate::update::initiate() {
-    _progress.state = DOWNLOAD;
+    _progress.state = CHECK;
     update_manifest();
+
+    auto r = libpak::resource("res.pak");
+    r.read(false);
+    std::vector<std::string> marked {};
+
+    for (auto &[path, asset]  : r.assets) {
+        if (!_manifest.contains(path)) {
+            marked.emplace_back(path);
+            continue;
+        }
+
+        if (_manifest[path] != asset.header.crc_embedded) {
+            marked.emplace_back(path);
+            continue;
+        }
+    }
+
+    assert(marked.empty());
 }
 
 void libupdate::update::terminate() {

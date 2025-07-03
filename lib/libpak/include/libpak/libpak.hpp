@@ -15,7 +15,7 @@
 namespace libpak
 {
 
-  using asset_map = std::unordered_map<std::u16string, asset>;
+  using asset_map = std::unordered_map<std::string, asset>;
 
   /**
    * Provides encapsulation for read and write operations on streams.
@@ -197,7 +197,7 @@ namespace libpak
      * @param name Asset name.
      * @return Indexed asset.
      */
-    asset& operator[](const std::u16string& name) { return this->assets.at(name); }
+    asset& operator[](const std::string& name) { return this->assets.at(name);}
 
     /**
      * Path to resource.

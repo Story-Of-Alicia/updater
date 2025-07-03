@@ -5,10 +5,11 @@
 #include <map>
 #include <mutex>
 #include <string>
+#include <vector>
 
 namespace libupdate {
     enum state {
-        NONE, DOWNLOAD, UPDATE, COMPILE, PAUSE, ERROR,
+        NONE, CHECK, DOWNLOAD, UPDATE, COMPILE, PAUSE, ERROR,
     };
 
     struct progress {
@@ -20,8 +21,10 @@ namespace libupdate {
         std::mutex _mutex    = {};
         progress   _progress = {};
         std::atomic<bool> _paused = false;
-        std::map<std::string, uint32_t> _indexes = {};
+        std::map<std::string, uint32_t> _manifest = {};
+        std::vector<std::string> _marked = {};
         void update_manifest();
+
     public:
         [[nodiscard]]
         progress get_progress() const noexcept;
